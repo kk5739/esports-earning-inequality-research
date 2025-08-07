@@ -6,7 +6,7 @@
 
 ## 📌 Scope of Contribution
 
-The scripts and datasets in this repository reflect the data **collection and cleaning pipeline** for the project. This includes scraping historical earnings, player rosters, and recent tournament results for popular esports titles.
+The scripts and datasets in this repository reflect the data **collection and cleaning pipeline** for the project. This includes scraping historical earnings, player rosters, and recent tournament results for popular esports titles. Specifically, a dataset of 45,371 esports players across 10 games was collected, cleaned, and analyzed using R Studio.
 
 ---
 
