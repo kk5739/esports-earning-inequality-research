@@ -1,0 +1,119 @@
+##Collect earnings for each player for each year
+
+#Before starting:
+#First, make sure you change the name to correspond
+#with the correct file e.g. StarcraftII
+#Second, make sure you change the GameIDs in the API
+#call and in the code that selects the relevant game
+
+library(dplyr)
+library(lubridate)
+library(jsonlite)
+library(httr)
+
+#First, read the playerIDs from the data
+#already collected and turn them 
+#into a vector to feed to the for loop
+
+DataREAD <- read.csv("allplayersApexLegends.csv", na.strings = "NA")
+PlayerID <- DataREAD$PlayerId
+PlayerID <- PlayerID[580:1538] #Must change this if repeating scrape due to interruption
+playerIDs <- as.numeric(gsub('[$,]', '', PlayerID))
+
+#Next, feed a vector of player ids
+#to "playerID" the for loop should
+#return a dataframe with player ids
+#and then the earnings for each year
+#Note: must clear the global environment
+#for it to work. (use broom in environment tab 
+#on RStudio)
+df <- data.frame(matrix(ncol = 25, nrow = 0))
+for(i in 1:length(playerIDs)) {
+  #assigns the i player ID
+  playerID <- playerIDs[[i]]
+  APILINK <- paste0("http://api.esportsearnings.com/v0/LookupPlayerTournaments?apikey=a9abe33e39059a81b2fa1a9648bfbd38572205890f9bdfa50ceca7208a9da065&playerid=", playerID,"&offset=0")
+  Sys.sleep(1)
+  jsonplayer <- APILINK %>% 
+    httr::GET(config = httr::config(ssl_verifypeer = FALSE)) %>% 
+    content(as = "text") %>%
+    fromJSON()
+  Sys.sleep(1)
+  #this subset uses if to figure out if
+  #there is more data left. If so it 
+  #will collect another set of data
+  if(nrow(jsonplayer) == 100) {
+    APILINK <- paste0("http://api.esportsearnings.com/v0/LookupPlayerTournaments?apikey=a9abe33e39059a81b2fa1a9648bfbd38572205890f9bdfa50ceca7208a9da065&playerid=", playerID,"&offset=100")
+    Sys.sleep(1)
+    jsonplayer2 <- APILINK %>% 
+      httr::GET(config = httr::config(ssl_verifypeer = FALSE)) %>% 
+      content(as = "text") %>%
+      fromJSON()
+    jsonplayer <- rbind(jsonplayer, jsonplayer2)
+    if(nrow(jsonplayer) == 200) {
+      Sys.sleep(1)
+      APILINK <- paste0("http://api.esportsearnings.com/v0/LookupPlayerTournaments?apikey=a9abe33e39059a81b2fa1a9648bfbd38572205890f9bdfa50ceca7208a9da065&playerid=", playerID,"&offset=200")
+      Sys.sleep(1)
+      jsonplayer2 <- APILINK %>% 
+        httr::GET(config = httr::config(ssl_verifypeer = FALSE)) %>% 
+        content(as = "text") %>%
+        fromJSON()
+      jsonplayer <- rbind(jsonplayer, jsonplayer2)
+      if(nrow(jsonplayer) == 300) {
+        Sys.sleep(1)
+        APILINK <- paste0("http://api.esportsearnings.com/v0/LookupPlayerTournaments?apikey=a9abe33e39059a81b2fa1a9648bfbd38572205890f9bdfa50ceca7208a9da065&playerid=", playerID,"&offset=300")
+        Sys.sleep(1)
+        jsonplayer2 <- APILINK %>% 
+          httr::GET(config = httr::config(ssl_verifypeer = FALSE)) %>% 
+          content(as = "text") %>%
+          fromJSON()
+        jsonplayer <- rbind(jsonplayer, jsonplayer2)
+        Sys.sleep(1)
+      }}}
+  #turn date column into actual date
+  jsonplayer <- mutate(jsonplayer, EndDate = ymd(EndDate))
+  #might need to make prizes and exchange rate
+  #integers too
+  jsonplayer$Prize <- as.numeric(gsub('[$,]', '', jsonplayer$Prize))
+  jsonplayer$ExchangeRate <- as.numeric(gsub('[$,]', '', jsonplayer$ExchangeRate))
+  earnings <- mutate(jsonplayer, Earnings = Prize * ExchangeRate / TeamPlayers)
+  #be careful to change this to the correct GameId!
+  earnings <- filter(earnings, GameId == "566")
+  
+  playerdata <- c()
+  playerdata <- append(playerdata, playerID)
+  
+  for(i in 1:24) {
+    eYear <- i+1997
+    enddate <- paste0(eYear,"-12-31")
+    startdate <- paste0(eYear,"-01-01")
+    earningsyear <- filter(earnings, EndDate < enddate & EndDate > startdate) 
+    if(nrow(earningsyear) > 0) {
+      yearearnings <- sum(earningsyear$Earnings)
+      playerdata <- append(playerdata, yearearnings, after = length(1+i))
+    } else {
+      playerdata <- append(playerdata, NA, after = length(1+i))
+    }
+  }
+  df <- rbind(df, playerdata)
+}
+
+#the problem is that this suffers from connectivity
+#so write the csv file first and then fix everything later
+
+x <- c("PlayerID", "X21", "X20", "X19", "X18",
+       "X17", "X16", "X15", "X14",
+       "X13", "X12", "X11", "X10",
+       "X09", "X08", "X07", "X06",
+       "X05", "X04", "X03", "X02",
+       "X01", "X00", "X99", "X98")
+colnames(df) <- x
+
+write.csv(df, "playerearningsApexLegends580-1538.csv")
+
+#Repeat using the following steps:
+#Change the number range in the third line of code
+#If you have scraped 70 players start from [71:end]
+#Change the number range in the write.csv
+
+
+
